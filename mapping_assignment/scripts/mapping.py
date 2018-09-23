@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 """
-    # {student full name}
-    # {student id}
-    # {student email}
+    # Rizwan Asif
+    # 921008-8556
+    # rasif@kth.se
 """
 
 # Python standard library
@@ -159,12 +159,16 @@ class Mapping:
         Fill in your solution here
         """
         robPos = [pose.pose.position.x, pose.pose.position.y, robot_yaw]
-        traces = None
+        traces = []
+        min_x = 100000000
+        min_y = 100000000
+        max_x = 0
+        max_y = 0
         
         for i in range(len(scan.ranges)):
             lv = scan.ranges[i]
-	    if lv >= scan.range_min and lv <= scan.range_max:
-	        x = robPos[0]-origin.position.x + lv*math.cos(scan.angle_min + robPos[2] + i*scan.angle_increment)
+            if lv > scan.range_min and lv < scan.range_max:
+                x = robPos[0]-origin.position.x + lv*math.cos(scan.angle_min + robPos[2] + i*scan.angle_increment)
                 y = robPos[1]-origin.position.y + lv*math.sin(scan.angle_min + robPos[2] + i*scan.angle_increment)
 
                 x = int(x/resolution)
@@ -176,25 +180,39 @@ class Mapping:
                 t = self.raytrace( ((robPos[0]-origin.position.x)/resolution,(robPos[1]-origin.position.y)/resolution) ,(x,y) )
                 for v in t:
                     if not v[0]==x or not v[1]==y:
-                        self.add_to_map(grid_map,v[0],v[1],self.free_space)
+                        #self.add_to_map(grid_map,v[0],v[1],self.free_space)
+                        traces.append(v)
+                        if v[0] > max_x:
+                            max_x = v[0]
+                        if v[0] < min_x:
+                            min_x = v[0]
+                        if v[1] > max_y:
+                            max_y = v[1]
+                        if v[1] < min_y:
+                            min_y = v[1] 
 
-
+     
         """
         For C only!
         Fill in the update correctly below.
-        """ 
+        """
+        #traces = np.array(traces)
+        print("Traces: {},{}  {},{}".format(min_x,min_y,max_x,max_y))
+        #print(traces)
+        trace_data = [self.free_space for _ in range(len(traces))]
+ 
         # Only get the part that has been updated
         update = OccupancyGridUpdate()
         # The minimum x index in 'grid_map' that has been updated
-        update.x = 0
+        update.x = min_x
         # The minimum y index in 'grid_map' that has been updated
-        update.y = 0
+        update.y = min_y
         # Maximum x index - minimum x index + 1
-        update.width = 0
+        update.width = max_x
         # Maximum y index - minimum y index + 1
-        update.height = 0
+        update.height = max_y
         # The map data inside the rectangle, in row-major order.
-        update.data = []
+        update.data = trace_data
 
         # Return the updated map together with only the
         # part of the map that has been updated
