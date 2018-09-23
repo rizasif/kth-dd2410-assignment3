@@ -159,6 +159,7 @@ class Mapping:
         Fill in your solution here
         """
         robPos = [pose.pose.position.x, pose.pose.position.y, robot_yaw]
+        traces = None
         
         for i in range(len(scan.ranges)):
             lv = scan.ranges[i]
@@ -170,6 +171,12 @@ class Mapping:
                 y = int(y/resolution)
 
                 self.add_to_map(grid_map,x,y,self.occupied_space)
+
+                #Add to trace
+                t = self.raytrace( ((robPos[0]-origin.position.x)/resolution,(robPos[1]-origin.position.y)/resolution) ,(x,y) )
+                for v in t:
+                    if not v[0]==x or not v[1]==y:
+                        self.add_to_map(grid_map,v[0],v[1],self.free_space)
 
 
         """
