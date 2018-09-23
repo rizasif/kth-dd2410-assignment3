@@ -8,6 +8,7 @@
 
 # Python standard library
 from math import cos, sin, atan2, fabs
+import math
 
 # Numpy
 import numpy as np
@@ -157,6 +158,18 @@ class Mapping:
         """
         Fill in your solution here
         """
+        robPos = [pose.pose.position.x, pose.pose.position.y, robot_yaw]
+        
+        for i in range(len(scan.ranges)):
+            lv = scan.ranges[i]
+	    if lv >= scan.range_min and lv <= scan.range_max:
+	        x = robPos[0]-origin.position.x + lv*math.cos(scan.angle_min + robPos[2] + i*scan.angle_increment)
+                y = robPos[1]-origin.position.y + lv*math.sin(scan.angle_min + robPos[2] + i*scan.angle_increment)
+
+                x = int(x/resolution)
+                y = int(y/resolution)
+
+                self.add_to_map(grid_map,x,y,self.occupied_space)
 
 
         """
