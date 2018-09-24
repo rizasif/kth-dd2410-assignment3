@@ -19,6 +19,7 @@ from local.sensor_msgs import LaserScan
 from local.map_msgs import OccupancyGridUpdate
 
 from grid_map import GridMap
+from copy import deepcopy
 
 
 class Mapping:
@@ -145,6 +146,7 @@ class Mapping:
         :type pose: PoseStamped
         :type scan: LaserScan
         """
+        grid_map0 = deepcopy(grid_map)
 
         # Current yaw of the robot
         robot_yaw = self.get_yaw(pose.pose.orientation)
@@ -160,10 +162,11 @@ class Mapping:
         """
         robPos = [pose.pose.position.x, pose.pose.position.y, robot_yaw]
         traces = []
-        min_x = 100000000
-        min_y = 100000000
-        max_x = 0
-        max_y = 0
+        
+        min_x = 100000
+        min_y = 100000
+        max_x = -1
+        max_y = -1
         
         for i in range(len(scan.ranges)):
             lv = scan.ranges[i]
@@ -174,31 +177,30 @@ class Mapping:
                 x = int(x/resolution)
                 y = int(y/resolution)
 
-                self.add_to_map(grid_map,x,y,self.occupied_space)
-
                 #Add to trace
                 t = self.raytrace( ((robPos[0]-origin.position.x)/resolution,(robPos[1]-origin.position.y)/resolution) ,(x,y) )
                 for v in t:
+                    if v[0] < min_x:
+                         min_x = v[0]
+                    if v[1] < min_y:
+                         min_y = v[1]
+                    if v[0] > max_x:
+                         max_x = v[0]
+                    if v[1] > max_y:
+                         max_y = v[1]
+
                     if not v[0]==x or not v[1]==y:
-                        #self.add_to_map(grid_map,v[0],v[1],self.free_space)
-                        traces.append(v)
-                        if v[0] > max_x:
-                            max_x = v[0]
-                        if v[0] < min_x:
-                            min_x = v[0]
-                        if v[1] > max_y:
-                            max_y = v[1]
-                        if v[1] < min_y:
-                            min_y = v[1] 
+                        self.add_to_map(grid_map,v[0],v[1],self.free_space)
+                        #if grid_map[v[0], v[1]] == self.free_space:
+                        #    print("Hit!")
+
+                self.add_to_map(grid_map,x,y,self.occupied_space) 
 
      
         """
         For C only!
         Fill in the update correctly below.
         """
-        #traces = np.array(traces)
-        print("Traces: {},{}  {},{}".format(min_x,min_y,max_x,max_y))
-        #print(traces)
         trace_data = [self.free_space for _ in range(len(traces))]
  
         # Only get the part that has been updated
@@ -208,15 +210,24 @@ class Mapping:
         # The minimum y index in 'grid_map' that has been updated
         update.y = min_y
         # Maximum x index - minimum x index + 1
-        update.width = max_x
+        update.width = max_x-min_x+1
         # Maximum y index - minimum y index + 1
-        update.height = max_y
+        update.height = max_y-min_y+1
         # The map data inside the rectangle, in row-major order.
-        update.data = trace_data
+        data = []
+        for j in range(update.height):
+            for i in range(update.width):
+                if self.is_in_bounds(grid_map,min_x+i,min_y+j):
+                    data.append(grid_map[min_x+i,min_y+j])
+        update.data = data
+        #print("Updatd: {}".format(np.shape(update.data)))
 
         # Return the updated map together with only the
         # part of the map that has been updated
-        return grid_map, update
+        #return grid_map, update
+        
+        #grid_map0 = GridMap()
+        return grid_map0, update
 
     def inflate_map(self, grid_map):
         """For C only!
@@ -247,6 +258,16 @@ class Mapping:
         """
         Fill in your solution here
         """
+        origin = grid_map.get_origin()
+        resolution = grid_map.get_resolution()
+        width = grid_map.get_width()
+        height = grid_map.get_height()
+        
+        #for i in range(origin.position.x, width):
+        #    for j in range(origin.position.y, height):
+        #        if self.is_in_bounds(grid_map,i,j):
+        #            if grid_map[i][j] == self.occupied_space:
+                        
 
         
         # Return the inflated map
