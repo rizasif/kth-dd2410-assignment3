@@ -190,11 +190,11 @@ class Mapping:
                          max_y = v[1]
 
                     if not v[0]==x or not v[1]==y:
-                        self.add_to_map(grid_map,v[0],v[1],self.free_space)
-                        #if grid_map[v[0], v[1]] == self.free_space:
-                        #    print("Hit!")
+                        if not grid_map[v[0],v[1]]==self.free_space:
+                            self.add_to_map(grid_map,v[0],v[1],self.free_space)
+                            pass
 
-                self.add_to_map(grid_map,x,y,self.occupied_space) 
+                self.add_to_map(grid_map,x,y,self.occupied_space)
 
      
         """
@@ -218,7 +218,7 @@ class Mapping:
         for j in range(update.height):
             for i in range(update.width):
                 if self.is_in_bounds(grid_map,min_x+i,min_y+j):
-                    data.append(grid_map[min_x+i,min_y+j])
+                    data.append(grid_map0[min_x+i,min_y+j])
         update.data = data
         #print("Updatd: {}".format(np.shape(update.data)))
 
@@ -227,7 +227,18 @@ class Mapping:
         #return grid_map, update
         
         #grid_map0 = GridMap()
-        return grid_map0, update
+        return grid_map, update
+
+    def getSquareCoords(self, center, res):
+        data = []
+        for i in range(1,res):
+            data.append([center[0]+i,center[1]])
+            data.append([center[0],center[1]+i])
+            data.append([center[0]+i,center[1]+i])
+            data.append([center[0]-i,center[1]])
+            data.append([center[0],center[1]-i])
+            data.append([center[0]-i,center[1]-i])
+        return data
 
     def inflate_map(self, grid_map):
         """For C only!
@@ -262,13 +273,19 @@ class Mapping:
         resolution = grid_map.get_resolution()
         width = grid_map.get_width()
         height = grid_map.get_height()
-        
-        #for i in range(origin.position.x, width):
-        #    for j in range(origin.position.y, height):
-        #        if self.is_in_bounds(grid_map,i,j):
-        #            if grid_map[i][j] == self.occupied_space:
-                        
+        radius_res = int(self.radius)
+        #print("{}*{} = {}".format(self.radius, resolution, radius_res))
 
-        
+        for i in range(width):
+            for j in range(height):
+                x = int(origin.position.x + i)
+                y = int(origin.position.y + j)
+                if self.is_in_bounds(grid_map,x,y):
+                    if grid_map[x,y] == self.occupied_space:
+                        points = self.getSquareCoords([x,y], radius_res)
+                        for p in points:
+                            if self.is_in_bounds(grid_map, p[0], p[1]) and \
+                            not grid_map[p[0],p[1]]==self.occupied_space:
+                                self.add_to_map(grid_map, p[0],p[1],self.c_space)
         # Return the inflated map
         return grid_map
