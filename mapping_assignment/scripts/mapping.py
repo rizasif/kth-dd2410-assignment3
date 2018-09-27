@@ -2,7 +2,7 @@
 
 """
     # Rizwan Asif
-    # 921008-8556
+    # 07030430
     # rasif@kth.se
 """
 
@@ -146,7 +146,7 @@ class Mapping:
         :type pose: PoseStamped
         :type scan: LaserScan
         """
-        grid_map0 = deepcopy(grid_map)
+        #grid_map0 = deepcopy(grid_map)
 
         # Current yaw of the robot
         robot_yaw = self.get_yaw(pose.pose.orientation)
@@ -167,34 +167,58 @@ class Mapping:
         min_y = 100000
         max_x = -1
         max_y = -1
+
+        all_x = []
+        all_y = []
+        main_p = []
         
         for i in range(len(scan.ranges)):
             lv = scan.ranges[i]
             if lv > scan.range_min and lv < scan.range_max:
-                x = robPos[0]-origin.position.x + lv*math.cos(scan.angle_min + robPos[2] + i*scan.angle_increment)
-                y = robPos[1]-origin.position.y + lv*math.sin(scan.angle_min + robPos[2] + i*scan.angle_increment)
+                x = (robPos[0]-origin.position.x) + (lv*math.cos(scan.angle_min + robPos[2] + i*scan.angle_increment))
+                y = (robPos[1]-origin.position.y) + (lv*math.sin(scan.angle_min + robPos[2] + i*scan.angle_increment))
 
                 x = int(x/resolution)
                 y = int(y/resolution)
 
-                #Add to trace
-                t = self.raytrace( ((robPos[0]-origin.position.x)/resolution,(robPos[1]-origin.position.y)/resolution) ,(x,y) )
-                for v in t:
-                    if v[0] < min_x:
-                         min_x = v[0]
-                    if v[1] < min_y:
-                         min_y = v[1]
-                    if v[0] > max_x:
-                         max_x = v[0]
-                    if v[1] > max_y:
-                         max_y = v[1]
-
-                    if not v[0]==x or not v[1]==y:
-                        if not grid_map[v[0],v[1]]==self.free_space:
-                            self.add_to_map(grid_map,v[0],v[1],self.free_space)
-                            pass
+                main_p.append((x,y))
 
                 self.add_to_map(grid_map,x,y,self.occupied_space)
+
+                #if x < min_x:
+                #     min_x = x
+                #if y < min_y:
+                #     min_y = y
+                #if x > max_x:
+                #     max_x = x
+                #if y > max_y:
+                #     max_y = y
+
+                #Add to trace
+                rx = int((robPos[0]-origin.position.x)/resolution)
+                ry = int((robPos[1]-origin.position.y)/resolution)
+                t = self.raytrace( (rx,ry) ,(x,y) )
+                for v in t:
+                    #if v[0] < min_x:
+                    #     min_x = v[0]
+                    #if v[1] < min_y:
+                    #     min_y = v[1]
+                    #if v[0] > max_x:
+                    #     max_x = v[0]
+                    #if v[1] > max_y:
+                    #     max_y = v[1]
+                    all_x.append(v[0])
+                    all_y.append(v[1])
+
+                    if not v == [x,y]:
+                        if not v == [rx,ry]:
+                            #if not grid_map[v[0],v[1]]==self.free_space:
+                            self.add_to_map(grid_map,v[0],v[1],self.free_space)
+
+                #self.add_to_map(grid_map,x,y,self.occupied_space)
+
+        for p in main_p:
+            self.add_to_map(grid_map,p[0],p[1],self.occupied_space)
 
      
         """
@@ -202,6 +226,11 @@ class Mapping:
         Fill in the update correctly below.
         """
         trace_data = [self.free_space for _ in range(len(traces))]
+
+        min_x = min(all_x)
+        min_y = min(all_y)
+        max_x = max(all_x)
+        max_y = max(all_y)
  
         # Only get the part that has been updated
         update = OccupancyGridUpdate()
@@ -213,12 +242,13 @@ class Mapping:
         update.width = max_x-min_x+1
         # Maximum y index - minimum y index + 1
         update.height = max_y-min_y+1
+        print("{},{} -- {},{} ".format(min_x,min_y,max_x,max_y))
         # The map data inside the rectangle, in row-major order.
         data = []
         for j in range(update.height):
             for i in range(update.width):
-                if self.is_in_bounds(grid_map,min_x+i,min_y+j):
-                    data.append(grid_map0[min_x+i,min_y+j])
+               if self.is_in_bounds(grid_map,min_x+i,min_y+j):
+                    data.append(grid_map[min_x+i,min_y+j])
         update.data = data
         #print("Updatd: {}".format(np.shape(update.data)))
 
@@ -229,15 +259,32 @@ class Mapping:
         #grid_map0 = GridMap()
         return grid_map, update
 
-    def getSquareCoords(self, center, res):
+    def getSquareCoords(self, center, rad):
         data = []
-        for i in range(1,res):
+        for i in range(1,rad+1):
             data.append([center[0]+i,center[1]])
             data.append([center[0],center[1]+i])
-            data.append([center[0]+i,center[1]+i])
+            #data.append([center[0]+i,center[1]+i])
+            
             data.append([center[0]-i,center[1]])
             data.append([center[0],center[1]-i])
-            data.append([center[0]-i,center[1]-i])
+            #data.append([center[0]-i,center[1]-i])
+            
+            #data.append([center[0]+i,center[1]-i])
+            #data.append([center[0]-i,center[1]+i])
+        #return data
+
+        xi = center[0]-rad
+        yi = center[1]-rad
+        for i in range(xi, center[0]):
+            for j in range(yi, center[1]):
+                if (math.pow(i-center[0],2)+math.pow(j-center[1],2)) <= math.pow(rad,2):
+                    xSym = center[0] - (i-center[0])
+                    ySym = center[1] - (j-center[1])
+                    data.append([i,j])
+                    data.append([i,ySym])
+                    data.append([xSym,j])
+                    data.append([xSym, ySym])
         return data
 
     def inflate_map(self, grid_map):
@@ -284,8 +331,8 @@ class Mapping:
                     if grid_map[x,y] == self.occupied_space:
                         points = self.getSquareCoords([x,y], radius_res)
                         for p in points:
-                            if self.is_in_bounds(grid_map, p[0], p[1]) and \
-                            not grid_map[p[0],p[1]]==self.occupied_space:
-                                self.add_to_map(grid_map, p[0],p[1],self.c_space)
+                            if not grid_map[p[0],p[1]]==self.occupied_space:
+                               self.add_to_map(grid_map, p[0],p[1],self.c_space)
+        
         # Return the inflated map
         return grid_map
